@@ -1,8 +1,27 @@
 FROM nvcr.io/nvidia/isaac-sim:2023.1.1
 
+RUN --mount=type=cache,sharing=locked,target=/var/cache/apt --mount=type=cache,sharing=locked,target=/var/lib/apt \
+    apt-get update && apt-get install --no-install-recommends -qqy \
+    git \
+    sudo
+
 COPY ./ /workspace/omniisaacgymenvs/
 RUN /isaac-sim/python.sh -m pip install -e /workspace/omniisaacgymenvs
 
 RUN echo 'alias PYTHON_PATH=/isaac-sim/python.sh' >> ~/.bashrc
+
+# # Create the same user as the host itself.
+# ARG UID=1000
+# ARG GID=1000
+# ARG USER=isaac
+# RUN addgroup --gid ${GID} ${USER} \
+#  && adduser --gecos "User" --disabled-password --uid ${UID} --gid ${GID} ${USER} \
+#  && usermod -a -G dialout ${USER} \
+#  && echo ${USER}" ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/99_aptget \
+#  && chmod 0440 /etc/sudoers.d/99_aptget && chown root:root /etc/sudoers.d/99_aptget
+
+# # Choose to run as user
+# ENV USER ${USER}
+# USER ${USER}
 
 ENTRYPOINT ["sh", "-c", "cd /workspace/omniisaacgymenvs/omniisaacgymenvs && bash"]
