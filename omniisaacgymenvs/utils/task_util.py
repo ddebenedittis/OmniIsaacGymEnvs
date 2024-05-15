@@ -43,6 +43,7 @@ def import_tasks():
     from omniisaacgymenvs.tasks.franka_deformable import FrankaDeformableTask
     from omniisaacgymenvs.tasks.humanoid import HumanoidLocomotionTask
     from omniisaacgymenvs.tasks.ingenuity import IngenuityTask
+    from omniisaacgymenvs.tasks.mulinex import MulinexTask
     from omniisaacgymenvs.tasks.quadcopter import QuadcopterTask
     from omniisaacgymenvs.tasks.shadow_hand import ShadowHandTask
 
@@ -66,6 +67,7 @@ def import_tasks():
         "FrankaDeformable": FrankaDeformableTask,
         "Humanoid": HumanoidLocomotionTask,
         "Ingenuity": IngenuityTask,
+        "Mulinex": MulinexTask,
         "Quadcopter": QuadcopterTask,
         "Crazyflie": CrazyflieTask,
         "ShadowHand": ShadowHandTask,
