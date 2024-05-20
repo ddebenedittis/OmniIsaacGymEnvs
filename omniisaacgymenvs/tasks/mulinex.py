@@ -42,16 +42,17 @@ class MulinexTask(RLTask):
     n_commands = 2
     n_dofs = 8
     h_init = 0.32
+    h_min_base = 0.25
+    h_min_hip = 0.1
+    h_min_knee = 0.05
     
     def __init__(self, name, sim_config, env, offset=None) -> None:
 
         self.update_config(sim_config)
         self._num_actions = self.n_dofs
         self._num_observations = 6 + 3 + self.n_commands + 2 * self.n_dofs + self._num_actions
-        
 
         RLTask.__init__(self, name, env)
-        return
 
     def update_config(self, sim_config):
         self._sim_config = sim_config
@@ -142,7 +143,7 @@ class MulinexTask(RLTask):
                 joint_paths.append(f"{quadrant}_{component}/{quadrant}_{abbrev}FE")
             joint_paths.append(f"base_link/{quadrant}_HFE")
         for joint_path in joint_paths:
-            set_drive(f"{mulinex.prim_path}/{joint_path}", "angular", "position", 0, 400, 40, 1000)
+            set_drive(f"{mulinex.prim_path}/{joint_path}", "angular", "position", 0, 40, 4, 100)
 
     def get_observations(self) -> dict:
         torso_position, torso_rotation = self._mulinexs.get_world_poses(clone=False)
@@ -295,7 +296,7 @@ class MulinexTask(RLTask):
             torch.sum(torch.square(self.last_actions - self.actions), dim=1) * self.rew_scales["action_rate"]
         )
         rew_cosmetic = (
-            torch.sum(torch.abs(dof_pos[:, 0:4] - self.default_dof_pos[:, 0:4]), dim=1) * self.rew_scales["cosmetic"]
+            torch.sum(torch.abs(dof_pos[:, 0:8] - self.default_dof_pos[:, 0:8]), dim=1) * self.rew_scales["cosmetic"]
         )
 
         total_reward = rew_lin_vel_xy + rew_ang_vel_z + rew_joint_acc + rew_action_rate + rew_cosmetic + rew_lin_vel_z
@@ -304,7 +305,8 @@ class MulinexTask(RLTask):
         self.last_actions[:] = self.actions[:]
         self.last_dof_vel[:] = dof_vel[:]
 
-        self.fallen_over = self._mulinexs.is_base_below_threshold(threshold=0.51, ground_heights=0.0)
+        self.fallen_over = self._mulinexs.is_base_below_threshold(threshold=self.h_min_base, ground_heights=0.0) \
+            + self._mulinexs.is_knee_below_threshold(threshold=self.h_min_knee, ground_heights=0.0)
         total_reward[torch.nonzero(self.fallen_over)] = -1
         self.rew_buf[:] = total_reward.detach()
 

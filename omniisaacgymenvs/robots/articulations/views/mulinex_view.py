@@ -44,7 +44,7 @@ class MulinexView(ArticulationView):
 
         super().__init__(prim_paths_expr=prim_paths_expr, name=name, reset_xform_properties=False)
         self._knees = RigidPrimView(
-            prim_paths_expr="/World/envs/.*/mulinex/.*_UPPER_LEG",
+            prim_paths_expr="/World/envs/.*/mulinex/.*_LOWER_LEG",
             name="knees_view",
             reset_xform_properties=False,
             track_contact_forces=track_contact_forces,
