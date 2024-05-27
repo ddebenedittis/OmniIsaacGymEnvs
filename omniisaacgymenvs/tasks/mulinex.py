@@ -52,8 +52,10 @@ class MulinexTask(RLTask):
         self.update_config(sim_config)
         self._num_actions = self.n_joints
         self._num_observations = 6 + 3 + self.n_commands + 2 * self.n_joints + self._num_actions
-
+        
         RLTask.__init__(self, name, env)
+        
+        self.randomization_buf = torch.zeros(self.num_envs, dtype=torch.long, device=self.device)
 
     def update_config(self, sim_config):
         self._sim_config = sim_config
@@ -113,8 +115,9 @@ class MulinexTask(RLTask):
         scene.add(self._mulinexs)
         scene.add(self._mulinexs._knees)
         scene.add(self._mulinexs._base)
-
-        return
+        
+        if self._dr_randomizer.randomize:
+            self._dr_randomizer.apply_on_startup_domain_randomization(self)
 
     def initialize_views(self, scene):
         super().initialize_views(scene)
@@ -128,6 +131,9 @@ class MulinexTask(RLTask):
         scene.add(self._mulinexs)
         scene.add(self._mulinexs._knees)
         scene.add(self._mulinexs._base)
+        
+        if self._dr_randomizer.randomize:
+            self._dr_randomizer.apply_on_startup_domain_randomization(self)
 
     def get_mulinex(self):
         mulinex = Mulinex(
@@ -202,7 +208,19 @@ class MulinexTask(RLTask):
             current_targets, self.mulinex_dof_lower_limits, self.mulinex_dof_upper_limits
         )
         self._mulinexs.set_joint_position_targets(self.current_targets, indices)
-
+        
+        reset_buf = self.reset_buf.clone()
+        
+        if self._dr_randomizer.randomize:
+            rand_envs = torch.where(
+                self.randomization_buf >= self._dr_randomizer.min_frequency,
+                torch.ones_like(self.randomization_buf),
+                torch.zeros_like(self.randomization_buf),
+            )
+            rand_env_ids = torch.nonzero(torch.logical_and(rand_envs, reset_buf))
+            self.dr.physics_view.step_randomization(rand_env_ids)
+            self.randomization_buf[rand_env_ids] = 0
+            
     def reset_idx(self, env_ids):
         num_resets = len(env_ids)
         # randomize DOF velocities
@@ -276,6 +294,9 @@ class MulinexTask(RLTask):
         # randomize all envs
         indices = torch.arange(self._mulinexs.count, dtype=torch.int64, device=self._device)
         self.reset_idx(indices)
+        
+        if self._dr_randomizer.randomize:
+            self._dr_randomizer.set_up_domain_randomization(self)
 
     def calculate_metrics(self) -> None:
         torso_position, torso_rotation = self._mulinexs.get_world_poses(clone=False)
@@ -314,6 +335,8 @@ class MulinexTask(RLTask):
             + self._mulinexs.is_knee_below_threshold(threshold=self.h_min_knee, ground_heights=0.0)
         total_reward[torch.nonzero(self.fallen_over)] = -1
         self.rew_buf[:] = total_reward.detach()
+        
+        self.randomization_buf += 1
 
     def is_done(self) -> None:
         # reset agents
