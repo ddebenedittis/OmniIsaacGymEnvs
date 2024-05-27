@@ -1,5 +1,11 @@
 {
+    "python.autoComplete.extraPaths": [
+        "/isaac-sim/exts/**"
+    ],
     "pylint.args": [
         "--generated-members=torch.*, numpy.*"
-    ]
+    ],
+    "python.analysis.extraPaths": [
+        "/isaac-sim/exts/**"
+    ],
 }

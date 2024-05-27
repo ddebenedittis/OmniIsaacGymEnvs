@@ -40,7 +40,8 @@ from omniisaacgymenvs.tasks.utils.usd_utils import set_drive
 
 class MulinexTask(RLTask):
     n_commands = 2
-    n_dofs = 8
+    n_joints = 8
+    
     h_init = 0.32
     h_min_base = 0.25
     h_min_hip = 0.1
@@ -49,8 +50,8 @@ class MulinexTask(RLTask):
     def __init__(self, name, sim_config, env, offset=None) -> None:
 
         self.update_config(sim_config)
-        self._num_actions = self.n_dofs
-        self._num_observations = 6 + 3 + self.n_commands + 2 * self.n_dofs + self._num_actions
+        self._num_actions = self.n_joints
+        self._num_observations = 6 + 3 + self.n_commands + 2 * self.n_joints + self._num_actions
 
         RLTask.__init__(self, name, env)
 
@@ -143,7 +144,10 @@ class MulinexTask(RLTask):
                 joint_paths.append(f"{quadrant}_{component}/{quadrant}_{abbrev}FE")
             joint_paths.append(f"base_link/{quadrant}_HFE")
         for joint_path in joint_paths:
-            set_drive(f"{mulinex.prim_path}/{joint_path}", "angular", "position", 0, 40, 4, 100)
+            if "HFE" in joint_path:
+                set_drive(f"{mulinex.prim_path}/{joint_path}", "angular", "position", 0, 20, 2.0, 100)
+            else:
+                set_drive(f"{mulinex.prim_path}/{joint_path}", "angular", "position", 0, 10, 0.2, 100)
 
     def get_observations(self) -> dict:
         torso_position, torso_rotation = self._mulinexs.get_world_poses(clone=False)
@@ -192,7 +196,8 @@ class MulinexTask(RLTask):
 
         indices = torch.arange(self._mulinexs.count, dtype=torch.int32, device=self._device)
         self.actions[:] = actions.clone().to(self._device)
-        current_targets = self.current_targets + self.action_scale * self.actions * self.dt
+        # current_targets = self.current_targets + self.action_scale * self.actions * self.dt
+        current_targets = self.default_dof_pos + self.actions
         self.current_targets[:] = tensor_clamp(
             current_targets, self.mulinex_dof_lower_limits, self.mulinex_dof_upper_limits
         )
@@ -234,7 +239,7 @@ class MulinexTask(RLTask):
 
     def post_reset(self):
         self.default_dof_pos = torch.zeros(
-            (self.num_envs, self.n_dofs), dtype=torch.float, device=self.device, requires_grad=False
+            (self.num_envs, self.n_joints), dtype=torch.float, device=self.device, requires_grad=False
         )
         dof_names = self._mulinexs.dof_names
         for i in range(self.num_actions):
@@ -260,7 +265,7 @@ class MulinexTask(RLTask):
             self._num_envs, self.num_actions, dtype=torch.float, device=self._device, requires_grad=False
         )
         self.last_dof_vel = torch.zeros(
-            (self._num_envs, self.n_dofs), dtype=torch.float, device=self._device, requires_grad=False
+            (self._num_envs, self.n_joints), dtype=torch.float, device=self._device, requires_grad=False
         )
         self.last_actions = torch.zeros(
             self._num_envs, self.num_actions, dtype=torch.float, device=self._device, requires_grad=False

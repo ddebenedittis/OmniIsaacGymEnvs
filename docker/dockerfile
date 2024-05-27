@@ -5,6 +5,12 @@ RUN --mount=type=cache,sharing=locked,target=/var/cache/apt --mount=type=cache,s
     git \
     sudo
 
+RUN /isaac-sim/python.sh -m pip install \
+    colorama \
+    emoji \
+    onnx \
+    onnxruntime
+
 COPY ./ /workspace/omniisaacgymenvs/
 RUN /isaac-sim/python.sh -m pip install -e /workspace/omniisaacgymenvs
 
